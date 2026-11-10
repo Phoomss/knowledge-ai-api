@@ -3,7 +3,8 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 
-sqlalchemy
+sqlalchemy[asyncio]
+greenlet
 asyncpg
 pgvector
 

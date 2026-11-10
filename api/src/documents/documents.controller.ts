@@ -6,12 +6,11 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-
 import { DocumentsService } from './documents.service';
-
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 
@@ -25,8 +24,8 @@ export class DocumentsController {
   }
 
   @Get()
-  findAll() {
-    return this.documentsService.findAll();
+  findAll(@Query('knowledge_base_id') knowledgeBaseId?: string) {
+    return this.documentsService.findAll(knowledgeBaseId);
   }
 
   @Get(':id')

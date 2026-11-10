@@ -64,7 +64,7 @@ async def ingest_text(
     db: AsyncSession = Depends(get_db),
     pipeline: IngestionPipeline = Depends(get_ingestion_pipeline),
 ):
-    document_id = uuid4()
+    document_id = request.document_id or uuid4()
 
     try:
         # 1. Verify Knowledge Base exists
@@ -83,28 +83,49 @@ async def ingest_text(
                 detail="Knowledge Base not found",
             )
 
-        # 2. Create Document record in database
-        await db.execute(
-            text("""
-                INSERT INTO documents (
-                    id,
-                    knowledge_base_id,
-                    filename,
-                    status
-                )
-                VALUES (
-                    :id,
-                    :knowledge_base_id,
-                    :filename,
-                    'PROCESSING'
-                )
-            """),
-            {
-                "id": str(document_id),
-                "knowledge_base_id": str(request.knowledge_base_id),
-                "filename": request.filename,
-            },
+        # 2. Check if Document record already exists (e.g. created by NestJS API)
+        existing = await db.execute(
+            text("SELECT id FROM documents WHERE id = :id"),
+            {"id": str(document_id)},
         )
+
+        if existing.first():
+            await db.execute(
+                text("""
+                    UPDATE documents
+                    SET status = 'PROCESSING',
+                        knowledge_base_id = :knowledge_base_id,
+                        filename = :filename
+                    WHERE id = :id
+                """),
+                {
+                    "id": str(document_id),
+                    "knowledge_base_id": str(request.knowledge_base_id),
+                    "filename": request.filename,
+                },
+            )
+        else:
+            await db.execute(
+                text("""
+                    INSERT INTO documents (
+                        id,
+                        knowledge_base_id,
+                        filename,
+                        status
+                    )
+                    VALUES (
+                        :id,
+                        :knowledge_base_id,
+                        :filename,
+                        'PROCESSING'
+                    )
+                """),
+                {
+                    "id": str(document_id),
+                    "knowledge_base_id": str(request.knowledge_base_id),
+                    "filename": request.filename,
+                },
+            )
         await db.commit()
 
         # 3. Choose Background vs Synchronous Ingestion

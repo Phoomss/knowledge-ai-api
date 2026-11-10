@@ -6,19 +6,49 @@ datasource db {
   provider = "postgresql"
 }
 
-model Document {
-  id          String   @id @default(uuid())
-  title       String
+model KnowledgeBase {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @db.VarChar(255)
   description String?
-  content     String
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
 
-  status      DocumentStatus @default(PENDING)
+  documents   Document[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  @@map("knowledge_bases")
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  knowledgeBaseId String?         @map("knowledge_base_id") @db.Uuid
+  title           String
+  filename        String?         @db.VarChar(255)
+  description     String?
+  content         String
+  status          DocumentStatus  @default(PENDING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  knowledgeBase   KnowledgeBase?  @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks          DocumentChunk[]
 
   @@index([status])
+  @@index([knowledgeBaseId])
   @@map("documents")
+}
+
+model DocumentChunk {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id")
+  content    String
+  chunkIndex Int      @map("chunk_index")
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_chunks")
 }
 
 enum DocumentStatus {

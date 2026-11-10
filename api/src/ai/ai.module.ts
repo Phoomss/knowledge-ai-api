@@ -7,6 +7,6 @@ import { PromptBuilderService } from './prompts/prompt-builder.service';
 @Module({
   imports: [HttpModule],
   providers: [AiOrchestratorService, AiEngineProvider, PromptBuilderService],
-  exports: [AiOrchestratorService],
+  exports: [AiOrchestratorService, AiEngineProvider],
 })
 export class AiModule {}
