@@ -42,6 +42,6 @@ export class DocumentsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
-    this.documentsService.remove(id);
+    return this.documentsService.remove(id);
   }
 }
