@@ -7,14 +7,18 @@ import { UpdateKnowledgeBaseDto } from './dto/update-knowledge-base.dto';
 export class KnowledgeBasesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateKnowledgeBaseDto) {
+  async create(dto: CreateKnowledgeBaseDto, userId?: string) {
     return this.prisma.knowledgeBase.create({
-      data: dto,
+      data: {
+        ...dto,
+        userId: userId || undefined,
+      },
     });
   }
 
-  async findAll() {
+  async findAll(userId?: string) {
     return this.prisma.knowledgeBase.findMany({
+      where: userId ? { OR: [{ userId }, { userId: null }] } : undefined,
       include: {
         _count: {
           select: { documents: true },

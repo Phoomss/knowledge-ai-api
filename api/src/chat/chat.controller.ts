@@ -8,24 +8,35 @@ import {
   Param,
   Query,
   Res,
+  UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatQueryDto } from './dto/create-chat.dto';
+import { OptionalJwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, UserPayload } from '../auth/decorators/current-user.decorator';
 
 @Controller('chat')
+@UseGuards(OptionalJwtAuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('query')
-  async query(@Body() dto: ChatQueryDto) {
-    return this.chatService.sendMessage(dto);
+  async query(@Body() dto: ChatQueryDto, @CurrentUser() user?: UserPayload) {
+    return this.chatService.sendMessage(dto, user?.id);
   }
 
   @Post('stream')
-  async stream(@Body() dto: ChatQueryDto, @Res() res: Response) {
-    const { stream, conversationId } = await this.chatService.streamMessage(dto);
+  async stream(
+    @Body() dto: ChatQueryDto,
+    @Res() res: Response,
+    @CurrentUser() user?: UserPayload,
+  ) {
+    const { stream, conversationId } = await this.chatService.streamMessage(
+      dto,
+      user?.id,
+    );
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -37,8 +48,11 @@ export class ChatController {
   }
 
   @Get('conversations')
-  async getConversations(@Query('knowledge_base_id') knowledgeBaseId?: string) {
-    return this.chatService.getConversations(knowledgeBaseId);
+  async getConversations(
+    @Query('knowledge_base_id') knowledgeBaseId?: string,
+    @CurrentUser() user?: UserPayload,
+  ) {
+    return this.chatService.getConversations(knowledgeBaseId, user?.id);
   }
 
   @Get('conversations/:id')

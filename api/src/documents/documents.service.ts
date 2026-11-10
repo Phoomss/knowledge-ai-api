@@ -3,7 +3,10 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { PrismaService } from '../database/prisma.service';
@@ -17,6 +20,9 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiEngine: AiEngineProvider,
+    @Optional()
+    @InjectQueue('document-ingestion')
+    private readonly ingestionQueue?: Queue,
   ) {}
 
   async create(dto: CreateDocumentDto) {
@@ -43,20 +49,38 @@ export class DocumentsService {
       },
     });
 
-    // 3. Trigger Ingestion in ai-service asynchronously
-    this.aiEngine
-      .triggerIngest({
-        document_id: document.id,
-        knowledge_base_id: document.knowledgeBaseId!,
-        filename: document.filename || document.title,
-        content: document.content,
-        background: true,
-      })
-      .catch((error) => {
-        this.logger.error(
-          `Failed to trigger ai-service ingestion for document ${document.id}: ${error.message}`,
-        );
-      });
+    // 3. Dispatch to BullMQ Queue (or fallback to async trigger)
+    if (this.ingestionQueue) {
+      await this.ingestionQueue.add(
+        'ingest-text',
+        {
+          documentId: document.id,
+          knowledgeBaseId: document.knowledgeBaseId!,
+          filename: document.filename || document.title,
+          content: document.content,
+        },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: true,
+        },
+      );
+      this.logger.log(`Document ${document.id} enqueued to BullMQ document-ingestion`);
+    } else {
+      this.aiEngine
+        .triggerIngest({
+          document_id: document.id,
+          knowledge_base_id: document.knowledgeBaseId!,
+          filename: document.filename || document.title,
+          content: document.content,
+          background: true,
+        })
+        .catch((error) => {
+          this.logger.error(
+            `Failed to trigger ai-service ingestion for document ${document.id}: ${error.message}`,
+          );
+        });
+    }
 
     return document;
   }
@@ -97,20 +121,38 @@ export class DocumentsService {
       },
     });
 
-    // 2. Trigger PDF ingestion in ai-service
-    this.aiEngine
-      .uploadPdf(
-        document.id,
-        knowledgeBaseId,
-        file.originalname,
-        file.buffer,
-        true,
-      )
-      .catch((error) => {
-        this.logger.error(
-          `Failed to trigger PDF ingestion for doc ${document.id}: ${error.message}`,
-        );
-      });
+    // 2. Dispatch to BullMQ Queue (or fallback)
+    if (this.ingestionQueue) {
+      await this.ingestionQueue.add(
+        'ingest-pdf',
+        {
+          documentId: document.id,
+          knowledgeBaseId,
+          filename: file.originalname,
+          pdfBase64: file.buffer.toString('base64'),
+        },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: true,
+        },
+      );
+      this.logger.log(`PDF Document ${document.id} enqueued to BullMQ document-ingestion`);
+    } else {
+      this.aiEngine
+        .uploadPdf(
+          document.id,
+          knowledgeBaseId,
+          file.originalname,
+          file.buffer,
+          true,
+        )
+        .catch((error) => {
+          this.logger.error(
+            `Failed to trigger PDF ingestion for doc ${document.id}: ${error.message}`,
+          );
+        });
+    }
 
     return document;
   }

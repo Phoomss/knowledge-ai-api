@@ -6,13 +6,35 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id             String          @id @default(uuid()) @db.Uuid
+  email          String          @unique @db.VarChar(255)
+  password       String          @db.VarChar(255)
+  name           String          @db.VarChar(255)
+  role           Role            @default(USER)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  knowledgeBases KnowledgeBase[]
+  conversations  Conversation[]
+
+  @@map("users")
+}
+
 model KnowledgeBase {
   id            String         @id @default(uuid()) @db.Uuid
+  userId        String?        @map("user_id") @db.Uuid
   name          String         @db.VarChar(255)
   description   String?
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
 
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents     Document[]
   conversations Conversation[]
 
@@ -55,11 +77,13 @@ model DocumentChunk {
 
 model Conversation {
   id              String                @id @default(uuid()) @db.Uuid
+  userId          String?               @map("user_id") @db.Uuid
   title           String?               @db.VarChar(255)
   knowledgeBaseId String?               @map("knowledge_base_id") @db.Uuid
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
 
+  user            User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   knowledgeBase   KnowledgeBase?        @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
   messages        ConversationMessage[]
 

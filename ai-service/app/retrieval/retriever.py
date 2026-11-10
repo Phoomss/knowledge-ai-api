@@ -29,7 +29,9 @@ class Retriever:
             db=db,
             knowledge_base_id=knowledge_base_id,
             query_vector=query_vector,
+            query_text=question,
             top_k=top_k,
+            search_mode="hybrid",
         )
 
         return results

@@ -17,6 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: knowledge-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
   ai-service:
     build:
       context: ./ai-service
@@ -46,13 +60,29 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/knowledge_ai
       AI_SERVICE_URL: http://ai-service:8000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       PORT: 3000
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       ai-service:
         condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: knowledge-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
   huggingface_cache:
+  redis_data:

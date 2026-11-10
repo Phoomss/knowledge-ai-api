@@ -6,25 +6,32 @@ import {
   Delete,
   Body,
   Param,
+  UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { KnowledgeBasesService } from './knowledge-bases.service';
 import { CreateKnowledgeBaseDto } from './dto/create-knowledge-base.dto';
 import { UpdateKnowledgeBaseDto } from './dto/update-knowledge-base.dto';
+import { OptionalJwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, UserPayload } from '../auth/decorators/current-user.decorator';
 
 @Controller('knowledge-bases')
+@UseGuards(OptionalJwtAuthGuard)
 export class KnowledgeBasesController {
   constructor(private readonly kbService: KnowledgeBasesService) {}
 
   @Post()
-  create(@Body() dto: CreateKnowledgeBaseDto) {
-    return this.kbService.create(dto);
+  create(
+    @Body() dto: CreateKnowledgeBaseDto,
+    @CurrentUser() user?: UserPayload,
+  ) {
+    return this.kbService.create(dto, user?.id);
   }
 
   @Get()
-  findAll() {
-    return this.kbService.findAll();
+  findAll(@CurrentUser() user?: UserPayload) {
+    return this.kbService.findAll(user?.id);
   }
 
   @Get(':id')

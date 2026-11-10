@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Optional
 from starlette.concurrency import run_in_threadpool
 
@@ -49,11 +50,9 @@ class Reranker:
 
                 for doc, score in zip(documents, scores):
                     doc["rerank_score"] = float(score)
-                    # Normalize / blend score for final ranking
-                    doc["score"] = float(score)
 
-                # Sort descending by rerank score
-                reranked = sorted(documents, key=lambda x: x["score"], reverse=True)
+                # Sort descending by cross-encoder rerank score
+                reranked = sorted(documents, key=lambda x: x["rerank_score"], reverse=True)
                 return reranked[:top_n] if top_n else reranked
             except Exception as e:
                 logger.error(f"Error during reranking: {e}. Falling back to original retrieval order.")

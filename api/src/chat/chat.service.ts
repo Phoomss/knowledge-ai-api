@@ -10,7 +10,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async sendMessage(dto: ChatQueryDto) {
+  async sendMessage(dto: ChatQueryDto, userId?: string) {
     let conversationId = dto.conversation_id;
 
     // 1. If conversation_id is provided, verify it exists or create it
@@ -22,6 +22,7 @@ export class ChatService {
         const created = await this.prisma.conversation.create({
           data: {
             id: conversationId,
+            userId: userId || undefined,
             knowledgeBaseId: dto.knowledge_base_id,
             title: dto.question.slice(0, 50),
           },
@@ -32,6 +33,7 @@ export class ChatService {
       // Create new conversation
       const created = await this.prisma.conversation.create({
         data: {
+          userId: userId || undefined,
           knowledgeBaseId: dto.knowledge_base_id,
           title: dto.question.slice(0, 50),
         },
@@ -56,7 +58,7 @@ export class ChatService {
     };
   }
 
-  async streamMessage(dto: ChatQueryDto) {
+  async streamMessage(dto: ChatQueryDto, userId?: string) {
     let conversationId = dto.conversation_id;
 
     if (conversationId) {
@@ -67,6 +69,7 @@ export class ChatService {
         const created = await this.prisma.conversation.create({
           data: {
             id: conversationId,
+            userId: userId || undefined,
             knowledgeBaseId: dto.knowledge_base_id,
             title: dto.question.slice(0, 50),
           },
@@ -76,6 +79,7 @@ export class ChatService {
     } else {
       const created = await this.prisma.conversation.create({
         data: {
+          userId: userId || undefined,
           knowledgeBaseId: dto.knowledge_base_id,
           title: dto.question.slice(0, 50),
         },
@@ -99,9 +103,12 @@ export class ChatService {
     };
   }
 
-  async getConversations(knowledgeBaseId?: string) {
+  async getConversations(knowledgeBaseId?: string, userId?: string) {
     return this.prisma.conversation.findMany({
-      where: knowledgeBaseId ? { knowledgeBaseId } : undefined,
+      where: {
+        ...(knowledgeBaseId ? { knowledgeBaseId } : {}),
+        ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
+      },
       include: {
         _count: {
           select: { messages: true },
