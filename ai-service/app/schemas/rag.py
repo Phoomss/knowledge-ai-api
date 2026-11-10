@@ -2,24 +2,18 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
+
 class RagOptions(BaseModel):
-    top_k: int = Field(
-        default=5,
-        ge=1,
-        le=20,
-    )
+    top_k: int = Field(default=5, ge=1, le=20)
     use_reranker: bool = False
 
+
 class RagQueryRequest(BaseModel):
-    question: str = Field(
-        min_length=1,
-        max_length=10000,
-    )
+    question: str = Field(min_length=1, max_length=10000)
     knowledge_base_id: UUID
     conversation_id: Optional[UUID] = None
-    options: RagOptions = Field(
-        default_factory=RagOptions,
-    )
+    options: RagOptions = Field(default_factory=RagOptions)
+
 
 class RagSource(BaseModel):
     document_id: UUID
@@ -28,12 +22,44 @@ class RagSource(BaseModel):
     content: str
     score: float
 
+
 class RagMetadata(BaseModel):
     model: Optional[str] = None
     retrieval_count: int
     used_context_count: int
+    estimated_prompt_tokens: Optional[int] = None
+    estimated_answer_tokens: Optional[int] = None
+    timings: Optional[dict[str, float]] = None
+    security_alert: Optional[str] = None
+
 
 class RagQueryResponse(BaseModel):
     answer: str
     sources: list[RagSource]
     metadata: RagMetadata
+
+
+# Ingestion Schemas
+class IngestTextRequest(BaseModel):
+    document_id: UUID
+    content: str = Field(min_length=1)
+
+
+class IngestResponse(BaseModel):
+    document_id: UUID
+    status: str
+    message: str
+
+
+# Evaluation Schemas
+class RagEvalRequest(BaseModel):
+    question: str
+    answer: str
+    context: list[str]
+
+
+class RagEvalResponse(BaseModel):
+    overall_score: float
+    context_relevance: float
+    faithfulness: float
+    details: Optional[str] = None
