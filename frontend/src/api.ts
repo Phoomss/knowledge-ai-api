@@ -246,6 +246,8 @@ export const api = {
               callbacks.onSources?.(data);
             } else if (currentEvent === 'done') {
               callbacks.onDone?.(data.timings);
+            } else if (currentEvent === 'error') {
+              callbacks.onError?.(data.error || data.message || 'Stream generation failed');
             } else {
               // message / chunk
               if (data.content) {

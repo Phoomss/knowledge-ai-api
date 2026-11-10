@@ -51,8 +51,12 @@ async def lifespan(app: FastAPI):
     llm_provider = GeminiProvider(
         api_key=settings.gemini_api_key,
         model=settings.gemini_model,
-        timeout=30.0,
-        max_retries=3,
+        timeout=settings.llm_timeout,
+        max_retries=settings.llm_max_retries,
+        base_delay=settings.llm_base_delay,
+        max_delay=settings.llm_max_delay,
+        jitter=settings.llm_jitter,
+        fallback_model=settings.llm_fallback_model,
     )
 
     # 6. Initialize Reranker & Evaluator

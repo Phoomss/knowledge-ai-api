@@ -96,6 +96,8 @@ model ConversationMessage {
   conversationId String       @map("conversation_id") @db.Uuid
   role           String       @db.VarChar(20)
   content        String
+  status         String?      @default("completed") @db.VarChar(20)
+  metadata       Json?        @default("{}")
   sources        Json?        @default("[]")
   createdAt      DateTime     @default(now()) @map("created_at")
 
