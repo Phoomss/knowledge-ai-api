@@ -2,6 +2,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     container_name: knowledge-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -10,6 +11,48 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d knowledge_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: knowledge-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai-service/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/knowledge_ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: knowledge-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/knowledge_ai
+      AI_SERVICE_URL: http://ai-service:8000
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
 
 volumes:
   postgres_data:
+  huggingface_cache:
