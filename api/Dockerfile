@@ -1,23 +1,28 @@
+# Multi-stage build for NestJS API
 FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-# Copy dependency specifications and Prisma schema
+# Copy dependency files
 COPY package.json bun.lock ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Install dependencies and generate Prisma Client
+# Install dependencies and build
 RUN bun install --frozen-lockfile
 ENV DATABASE_URL="postgresql://postgres:password@localhost:5432/knowledge_ai"
 RUN bunx prisma generate
 
-# Copy application source code and build
 COPY . .
 RUN bun run build
 
-# Production image
-FROM oven/bun:1 AS runner
+# Prune to production-only dependencies
+RUN rm -rf node_modules
+RUN bun install --production --frozen-lockfile
+RUN bunx prisma generate
+
+# Stage 2: Ultra-lightweight runtime with oven/bun:1-slim
+FROM oven/bun:1-slim AS runner
 
 WORKDIR /app
 
