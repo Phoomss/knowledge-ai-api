@@ -63,8 +63,8 @@ class RagRuntime:
                 },
             }
 
-        # 2. Conversation Memory: Get previous turns
-        history = self.memory.get_history(conversation_id)
+        # 2. Conversation Memory: Get previous turns from PostgreSQL
+        history = await self.memory.get_history(db=db, conversation_id=conversation_id)
 
         # 3. Retrieve documents
         async with trace_stage(tracker, "retrieval"):
@@ -93,8 +93,22 @@ class RagRuntime:
         ]
 
         if not relevant_documents:
+            no_info_answer = "ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานความรู้"
+            if conversation_id:
+                await self.memory.add_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="user",
+                    content=clean_question,
+                )
+                await self.memory.add_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=no_info_answer,
+                )
             return {
-                "answer": "ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานความรู้",
+                "answer": no_info_answer,
                 "sources": [],
                 "metadata": {
                     "retrieval_count": len(raw_docs),
@@ -115,12 +129,7 @@ class RagRuntime:
         async with trace_stage(tracker, "generation"):
             answer = await self.llm_provider.generate(prompt=prompt)
 
-        # 8. Record in conversation memory
-        if conversation_id:
-            self.memory.add_message(conversation_id, "user", clean_question)
-            self.memory.add_message(conversation_id, "assistant", answer)
-
-        # 9. Format response sources
+        # 8. Format response sources
         sources = [
             {
                 "document_id": str(doc["document_id"]),
@@ -131,6 +140,22 @@ class RagRuntime:
             }
             for doc in used_documents
         ]
+
+        # 9. Record in conversation memory (PostgreSQL)
+        if conversation_id:
+            await self.memory.add_message(
+                db=db,
+                conversation_id=conversation_id,
+                role="user",
+                content=clean_question,
+            )
+            await self.memory.add_message(
+                db=db,
+                conversation_id=conversation_id,
+                role="assistant",
+                content=answer,
+                sources=sources,
+            )
 
         # 10. Observability metadata
         prompt_tokens_est = estimate_token_count(prompt)
@@ -167,7 +192,7 @@ class RagRuntime:
             yield f"data: {json.dumps({'error': 'Security policy violation', 'detail': pattern})}\n\n"
             return
 
-        history = self.memory.get_history(conversation_id)
+        history = await self.memory.get_history(db=db, conversation_id=conversation_id)
 
         # Retrieve
         fetch_count = top_k * 2 if use_reranker else top_k
@@ -191,7 +216,21 @@ class RagRuntime:
         ]
 
         if not relevant_docs:
-            yield f"data: {json.dumps({'content': 'ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานความรู้', 'done': True})}\n\n"
+            no_info_answer = "ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานความรู้"
+            if conversation_id:
+                await self.memory.add_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="user",
+                    content=clean_question,
+                )
+                await self.memory.add_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=no_info_answer,
+                )
+            yield f"data: {json.dumps({'content': no_info_answer, 'done': True})}\n\n"
             return
 
         prompt, used_docs = self.prompt_builder.build(
@@ -220,8 +259,19 @@ class RagRuntime:
 
         final_answer = "".join(full_answer)
         if conversation_id:
-            self.memory.add_message(conversation_id, "user", clean_question)
-            self.memory.add_message(conversation_id, "assistant", final_answer)
+            await self.memory.add_message(
+                db=db,
+                conversation_id=conversation_id,
+                role="user",
+                content=clean_question,
+            )
+            await self.memory.add_message(
+                db=db,
+                conversation_id=conversation_id,
+                role="assistant",
+                content=final_answer,
+                sources=sources,
+            )
 
         # Send completion event
         yield f"event: done\ndata: {json.dumps({'timings': tracker.summary(), 'done': True})}\n\n"

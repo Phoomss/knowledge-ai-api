@@ -22,15 +22,16 @@ def test_security_sanitization_and_injection():
     assert is_injected_safe is False
 
 
-def test_conversation_memory():
+@pytest.mark.asyncio
+async def test_conversation_memory():
     memory = ConversationMemory(max_history_per_conv=2)
     conv_id = "test-conv-123"
 
-    memory.add_message(conv_id, "user", "Hello")
-    memory.add_message(conv_id, "assistant", "Hi there")
-    memory.add_message(conv_id, "user", "What can you do?")
+    await memory.add_message(None, conv_id, "user", "Hello")
+    await memory.add_message(None, conv_id, "assistant", "Hi there")
+    await memory.add_message(None, conv_id, "user", "What can you do?")
 
-    history = memory.get_history(conv_id)
+    history = await memory.get_history(None, conv_id)
     assert len(history) == 2
     assert history[0]["content"] == "Hi there"
     assert history[1]["content"] == "What can you do?"
