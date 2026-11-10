@@ -57,3 +57,12 @@ export interface ConversationItem {
     messages: number;
   };
 }
+
+export type AppTab =
+  | 'overview'
+  | 'chat'
+  | 'knowledge-bases'
+  | 'documents'
+  | 'explorer'
+  | 'settings';
+

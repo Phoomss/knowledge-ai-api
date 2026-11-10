@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
-import { Database, Plus, Trash2, FolderOpen, Calendar, ArrowRight } from 'lucide-react';
+import {
+  Database,
+  Plus,
+  Trash2,
+  FolderOpen,
+  Calendar,
+  ArrowRight,
+  FileText,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react';
 import { KnowledgeBase } from '../types';
 import { api } from '../api';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import { Badge } from './ui/Badge';
+import { EmptyState } from './ui/EmptyState';
 
 interface KnowledgeBasesViewProps {
   knowledgeBases: KnowledgeBase[];
@@ -26,6 +39,13 @@ export const KnowledgeBasesView: React.FC<KnowledgeBasesViewProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const predefinedTemplates = [
+    { title: 'Engineering & Architecture Specs', desc: 'คู่มือสถาปัตยกรรมระบบ, API Specifications, DevOps guidelines และแนวทางการพัฒนาระบบ' },
+    { title: 'HR & Employee Handbooks', desc: 'ระเบียบนโยบายบริษัท, สวัสดิการพนักงาน, กองทุนสำรองเลี้ยงชีพ และกระบวนการเบิกจ่าย' },
+    { title: 'Product & Customer Operations', desc: 'เอกสารฟีเจอร์สินค้า, SOP การให้บริการลูกค้า และคู่มือการแก้ไขปัญหาเบื้องต้น' },
+    { title: 'Legal & Compliance Knowledge', desc: 'สัญญามาตรฐาน, ข้อกำหนดทางกฎหมาย และแนวปฏิบัติด้านความปลอดภัยข้อมูล PDPA' },
+  ];
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -45,7 +65,7 @@ export const KnowledgeBasesView: React.FC<KnowledgeBasesViewProps> = ({
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`คุณแน่ใจว่าต้องการลบ Knowledge Base "${name}" และเอกสารทั้งหมดในนี้?`)) return;
+    if (!confirm(`Are you sure you want to delete Knowledge Base "${name}" and all associated documents and vector chunks?`)) return;
     try {
       await api.deleteKnowledgeBase(id);
       if (selectedKbId === id) onSelectKb('');
@@ -56,100 +76,123 @@ export const KnowledgeBasesView: React.FC<KnowledgeBasesViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* View Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Database className="w-5 h-5 text-emerald-400" />
-            Knowledge Bases (ฐานความรู้)
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Database className="w-5 h-5 text-indigo-600" />
+            <span>Knowledge Base Partitions & Repositories</span>
           </h2>
-          <p className="text-sm text-slate-400">
-            สร้างและจัดการฐานข้อมูลเพื่อแบ่งหมวดหมู่เอกสารและให้ AI นำไปค้นหาบริบทตอบคำถาม
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            สร้างและจัดการกลุ่มองค์ความรู้ขององค์กร เพื่อให้ RAG Pipeline สกัดคำตอบเฉพาะบริบทที่ถูกต้อง
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition shadow-lg shadow-emerald-600/20"
+          className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-xs shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>สร้าง Knowledge Base</span>
+          <span>New Knowledge Base</span>
         </button>
       </div>
 
       {/* Grid of Knowledge Bases */}
       {knowledgeBases.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-slate-800 rounded-2xl bg-slate-900/40">
-          <Database className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-300">ยังไม่มี Knowledge Base</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-            กดปุ่มสร้างด้านบนเพื่อเริ่มต้นสร้างฐานความรู้สำหรับใส่ไฟล์ PDF หรือเอกสารของคุณ
-          </p>
-        </div>
+        <EmptyState
+          icon={<Database className="w-8 h-8 text-indigo-500" />}
+          title="No Knowledge Bases Found"
+          description="Click the button above to create your first Knowledge Base partition for indexing corporate files and PDFs."
+          action={
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition"
+            >
+              Create First Knowledge Base
+            </button>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {knowledgeBases.map((kb) => {
             const isSelected = selectedKbId === kb.id;
             return (
-              <div
+              <Card
                 key={kb.id}
-                className={`p-5 rounded-2xl border transition-all relative group flex flex-col justify-between ${
+                hoverable
+                className={`flex flex-col justify-between ${
                   isSelected
-                    ? 'bg-slate-900 border-emerald-500/80 shadow-lg shadow-emerald-500/10'
-                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                    : ''
                 }`}
               >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center text-emerald-400">
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
                         <FolderOpen className="w-5 h-5" />
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-100 text-base">{kb.name}</h4>
-                        <span className="text-xs text-emerald-400 font-mono">
-                          {kb._count?.documents || 0} เอกสาร
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">
+                          {kb.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Badge variant="primary" size="sm">
+                            {kb._count?.documents || 0} documents
+                          </Badge>
+                          {isSelected && (
+                            <Badge variant="success" size="sm">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     <button
                       onClick={() => handleDelete(kb.id, kb.name)}
-                      className="text-slate-500 hover:text-rose-400 transition p-1"
-                      title="ลบฐานความรู้"
+                      className="text-slate-400 hover:text-rose-600 transition p-1 rounded-lg hover:bg-rose-50 shrink-0"
+                      title="Delete Knowledge Base"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <p className="text-xs text-slate-400 mt-3 line-clamp-2">
-                    {kb.description || 'ไม่มีคำอธิบาย'}
+                  <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
+                    {kb.description || 'No description provided for this knowledge repository.'}
                   </p>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1 font-mono">
-                    <Calendar className="w-3.5 h-3.5" />
+                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex items-center justify-between text-xs text-slate-500 gap-2">
+                  <span className="flex items-center gap-1 font-mono text-[10px] text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
                     {new Date(kb.createdAt).toLocaleDateString('th-TH')}
                   </span>
 
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => { onSelectKb(kb.id); onNavigateToDocs(kb.id); }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-[11px]"
+                      onClick={() => {
+                        onSelectKb(kb.id);
+                        onNavigateToDocs(kb.id);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition shadow-xs flex items-center gap-1"
                     >
-                      จัดการไฟล์
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Docs</span>
                     </button>
                     <button
-                      onClick={() => { onSelectKb(kb.id); onNavigateToChat(kb.id); }}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 transition text-[11px] flex items-center gap-1"
+                      onClick={() => {
+                        onSelectKb(kb.id);
+                        onNavigateToChat(kb.id);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs flex items-center gap-1"
                     >
-                      <span>เปิดแชท</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <MessageSquare className="w-3 h-3" />
+                      <span>Chat</span>
                     </button>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -157,57 +200,91 @@ export const KnowledgeBasesView: React.FC<KnowledgeBasesViewProps> = ({
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-100 mb-2">สร้าง Knowledge Base ใหม่</h3>
-            <p className="text-xs text-slate-400 mb-4">
-              กำหนดชื่อและคำอธิบายสำหรับกลุ่มข้อมูลนี้
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 shadow-elevated">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Create Knowledge Base Partition
+            </h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Define a name and descriptive scope for this knowledge partition to guide hybrid vector indexing.
             </p>
 
+            {/* Quick Template Fillers */}
+            <div className="mb-4 space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Or select an enterprise starter template:
+              </span>
+              <div className="grid grid-cols-1 gap-1.5">
+                {predefinedTemplates.map((t, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setName(t.title);
+                      setDescription(t.desc);
+                    }}
+                    className="p-2 text-left rounded-xl border border-slate-100 hover:border-indigo-200 bg-slate-50/70 hover:bg-indigo-50/40 transition text-xs flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-800 group-hover:text-indigo-700">{t.title}</p>
+                      <p className="text-[10px] text-slate-400 truncate max-w-md">{t.desc}</p>
+                    </div>
+                    <span className="text-[10px] font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">
+                      Use template
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">ชื่อ Knowledge Base</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Knowledge Base Name
+                </label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="เช่น นโยบายบริษัท, คู่มือผลิตภัณฑ์ 2026"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g., Enterprise Architecture & API Specs"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">คำอธิบาย (ทางเลือก)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Description (Scope & Context)
+                </label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="รายละเอียดเพิ่มเติมของเอกสารชุดนี้..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Describe the topics and purpose of documents stored in this base..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-slate-200 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
                 >
-                  ยกเลิก
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                  disabled={loading || !name.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-xs disabled:opacity-50"
                 >
-                  {loading ? 'กำลังสร้าง...' : 'บันทึก'}
+                  {loading ? 'Creating...' : 'Save Knowledge Base'}
                 </button>
               </div>
             </form>

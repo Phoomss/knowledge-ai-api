@@ -130,6 +130,14 @@ export const api = {
     return res.json() as Promise<DocumentItem>;
   },
 
+  async deleteDocument(id: string) {
+    const res = await fetch(`${API_BASE}/documents/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete document');
+  },
+
   // Chat
   async getConversations(knowledgeBaseId?: string) {
     const url = knowledgeBaseId
@@ -146,6 +154,45 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to load conversation history');
     return res.json() as Promise<{ messages: ChatMessage[] }>;
+  },
+
+  async deleteConversation(id: string) {
+    const res = await fetch(`${API_BASE}/chat/conversations/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete conversation');
+  },
+
+  async queryChat(payload: {
+    question: string;
+    knowledge_base_id: string;
+    conversation_id?: string;
+  }) {
+    const res = await fetch(`${API_BASE}/chat/query`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Query failed' }));
+      throw new Error(err.message || 'Query failed');
+    }
+    return res.json() as Promise<{
+      answer: string;
+      sources: SourceCitation[];
+      metadata?: {
+        retrieval_count?: number;
+        used_context_count?: number;
+        model?: string;
+        timings?: {
+          retrieval_ms?: number;
+          reranking_ms?: number;
+          generation_ms?: number;
+          total_ms?: number;
+        };
+      };
+    }>;
   },
 
   async streamChat(

@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
+import { DashboardView } from './components/DashboardView';
 import { KnowledgeBasesView } from './components/KnowledgeBasesView';
 import { DocumentsView } from './components/DocumentsView';
 import { ChatView } from './components/ChatView';
+import { RetrievalExplorer } from './components/RetrievalExplorer';
+import { SettingsView } from './components/SettingsView';
 import { AuthModal } from './components/AuthModal';
-import { KnowledgeBase, User } from './types';
+import { KnowledgeBase, DocumentItem, ConversationItem, User, AppTab } from './types';
 import { api, setAuthToken } from './api';
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<'chat' | 'documents' | 'knowledge-bases'>('chat');
+  const [currentTab, setCurrentTab] = useState<AppTab>('overview');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedKbId, setSelectedKbId] = useState<string>('');
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -35,10 +40,37 @@ export const App: React.FC = () => {
     }
   };
 
+  const loadDocuments = async () => {
+    if (!selectedKbId) {
+      setDocuments([]);
+      return;
+    }
+    try {
+      const docs = await api.getDocuments(selectedKbId);
+      setDocuments(docs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadConversations = async () => {
+    try {
+      const convs = await api.getConversations(selectedKbId || undefined);
+      setConversations(convs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadUser();
     loadKnowledgeBases();
   }, []);
+
+  useEffect(() => {
+    loadDocuments();
+    loadConversations();
+  }, [selectedKbId]);
 
   const handleLogout = () => {
     setAuthToken(null);
@@ -46,7 +78,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
+      {/* Shared Application Shell Header */}
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -58,17 +91,42 @@ export const App: React.FC = () => {
         onSelectKb={(id) => setSelectedKbId(id)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
-        {currentTab === 'chat' && <ChatView selectedKbId={selectedKbId} />}
+      {/* Main Workspace View Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 md:p-6 pb-20 lg:pb-8 min-w-0">
+        {currentTab === 'overview' && (
+          <DashboardView
+            user={user}
+            knowledgeBases={knowledgeBases}
+            selectedKbId={selectedKbId}
+            onSelectKb={(id) => setSelectedKbId(id)}
+            documents={documents}
+            conversations={conversations}
+            onNavigate={(tab) => setCurrentTab(tab)}
+            onStartChat={(kbId) => {
+              if (kbId) setSelectedKbId(kbId);
+              setCurrentTab('chat');
+            }}
+          />
+        )}
 
-        {currentTab === 'documents' && <DocumentsView selectedKbId={selectedKbId} />}
+        {currentTab === 'chat' && (
+          <ChatView
+            selectedKbId={selectedKbId}
+            knowledgeBases={knowledgeBases}
+            onSelectKb={(id) => setSelectedKbId(id)}
+            onNavigateToKnowledgeBases={() => setCurrentTab('knowledge-bases')}
+          />
+        )}
 
         {currentTab === 'knowledge-bases' && (
           <KnowledgeBasesView
             knowledgeBases={knowledgeBases}
             selectedKbId={selectedKbId}
             onSelectKb={(id) => setSelectedKbId(id)}
-            onRefresh={loadKnowledgeBases}
+            onRefresh={() => {
+              loadKnowledgeBases();
+              loadDocuments();
+            }}
             onNavigateToDocs={(id) => {
               setSelectedKbId(id);
               setCurrentTab('documents');
@@ -79,8 +137,33 @@ export const App: React.FC = () => {
             }}
           />
         )}
+
+        {currentTab === 'documents' && (
+          <DocumentsView
+            selectedKbId={selectedKbId}
+            onNavigateToKnowledgeBases={() => setCurrentTab('knowledge-bases')}
+          />
+        )}
+
+        {currentTab === 'explorer' && (
+          <RetrievalExplorer
+            knowledgeBases={knowledgeBases}
+            selectedKbId={selectedKbId}
+            onSelectKb={(id) => setSelectedKbId(id)}
+            onNavigateToKnowledgeBases={() => setCurrentTab('knowledge-bases')}
+          />
+        )}
+
+        {currentTab === 'settings' && (
+          <SettingsView
+            user={user}
+            knowledgeBases={knowledgeBases}
+            documents={documents}
+          />
+        )}
       </main>
 
+      {/* Authentication Modal */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
