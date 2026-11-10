@@ -40,37 +40,38 @@ class IngestionPipeline:
             raise RuntimeError("Embedding count mismatch")
 
         try:
-            for chunk, vector in zip(chunks, vectors):
-                vector_string = "[" + ",".join(map(str, vector)) + "]"
-                metadata_json = json.dumps(chunk.metadata or {})
+            params = [
+                {
+                    "document_id": str(document_id),
+                    "content": chunk.content,
+                    "embedding": "[" + ",".join(map(str, vector)) + "]",
+                    "chunk_index": chunk.chunk_index,
+                    "metadata": json.dumps(chunk.metadata or {}),
+                }
+                for chunk, vector in zip(chunks, vectors)
+            ]
 
-                await db.execute(
-                    text("""
-                        INSERT INTO document_chunks (
-                            id,
-                            document_id,
-                            content,
-                            embedding,
-                            chunk_index,
-                            metadata
-                        )
-                        VALUES (
-                            gen_random_uuid(),
-                            :document_id,
-                            :content,
-                            CAST(:embedding AS vector),
-                            :chunk_index,
-                            CAST(:metadata AS jsonb)
-                        )
-                    """),
-                    {
-                        "document_id": str(document_id),
-                        "content": chunk.content,
-                        "embedding": vector_string,
-                        "chunk_index": chunk.chunk_index,
-                        "metadata": metadata_json,
-                    },
-                )
+            await db.execute(
+                text("""
+                    INSERT INTO document_chunks (
+                        id,
+                        document_id,
+                        content,
+                        embedding,
+                        chunk_index,
+                        metadata
+                    )
+                    VALUES (
+                        gen_random_uuid(),
+                        :document_id,
+                        :content,
+                        CAST(:embedding AS vector),
+                        :chunk_index,
+                        CAST(:metadata AS jsonb)
+                    )
+                """),
+                params,
+            )
 
             await db.execute(
                 text("""

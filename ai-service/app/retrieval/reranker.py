@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger("rag.reranker")
 
@@ -40,7 +41,7 @@ class Reranker:
         if model is not None:
             try:
                 pairs = [[query, doc["content"]] for doc in documents]
-                scores = model.compute_score(pairs)
+                scores = await run_in_threadpool(model.compute_score, pairs)
                 
                 # FlagReranker returns a list of floats or a single float
                 if isinstance(scores, (int, float)):

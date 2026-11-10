@@ -1,3 +1,4 @@
+import type { Response } from 'express';
 import {
   Controller,
   Post,
@@ -6,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -19,6 +21,19 @@ export class ChatController {
   @Post('query')
   async query(@Body() dto: ChatQueryDto) {
     return this.chatService.sendMessage(dto);
+  }
+
+  @Post('stream')
+  async stream(@Body() dto: ChatQueryDto, @Res() res: Response) {
+    const { stream, conversationId } = await this.chatService.streamMessage(dto);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('X-Conversation-Id', conversationId);
+
+    stream.pipe(res);
   }
 
   @Get('conversations')

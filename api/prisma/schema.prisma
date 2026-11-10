@@ -35,6 +35,7 @@ model Document {
 
   @@index([status])
   @@index([knowledgeBaseId])
+  @@index([knowledgeBaseId, status])
   @@map("documents")
 }
 

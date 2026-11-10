@@ -30,4 +30,12 @@ export class AiOrchestratorService {
 
     throw new Error('Unsupported AI strategy');
   }
+
+  async executeStream(request: RagRequest): Promise<any> {
+    if (!request.question.trim()) {
+      throw new Error('Question is required');
+    }
+
+    return this.aiEngine.queryStream(request);
+  }
 }

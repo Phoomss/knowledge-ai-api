@@ -56,6 +56,49 @@ export class ChatService {
     };
   }
 
+  async streamMessage(dto: ChatQueryDto) {
+    let conversationId = dto.conversation_id;
+
+    if (conversationId) {
+      const existing = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+      });
+      if (!existing) {
+        const created = await this.prisma.conversation.create({
+          data: {
+            id: conversationId,
+            knowledgeBaseId: dto.knowledge_base_id,
+            title: dto.question.slice(0, 50),
+          },
+        });
+        conversationId = created.id;
+      }
+    } else {
+      const created = await this.prisma.conversation.create({
+        data: {
+          knowledgeBaseId: dto.knowledge_base_id,
+          title: dto.question.slice(0, 50),
+        },
+      });
+      conversationId = created.id;
+    }
+
+    const stream = await this.orchestrator.executeStream({
+      question: dto.question,
+      knowledge_base_id: dto.knowledge_base_id,
+      conversation_id: conversationId,
+      options: {
+        top_k: 5,
+        use_reranker: true,
+      },
+    });
+
+    return {
+      stream,
+      conversationId,
+    };
+  }
+
   async getConversations(knowledgeBaseId?: string) {
     return this.prisma.conversation.findMany({
       where: knowledgeBaseId ? { knowledgeBaseId } : undefined,

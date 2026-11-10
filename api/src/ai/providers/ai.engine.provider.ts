@@ -56,6 +56,26 @@ export class AiEngineProvider {
     }
   }
 
+  async queryStream(request: RagRequest): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post(
+          `${this.baseUrl}/api/v1/rag/query/stream`,
+          request,
+          { responseType: 'stream' },
+        ),
+      );
+
+      return response.data;
+    } catch (error: any) {
+      if (error.code === 'ECONNABORTED') {
+        throw new GatewayTimeoutException('AI streaming timeout');
+      }
+
+      throw new ServiceUnavailableException('AI Engine streaming unavailable');
+    }
+  }
+
   async triggerIngest(payload: IngestRequestPayload): Promise<IngestResponsePayload> {
     try {
       const response = await firstValueFrom(

@@ -126,8 +126,12 @@ class RagRuntime:
         )
 
         # 7. Generate answer with timeout & retry
-        async with trace_stage(tracker, "generation"):
-            answer = await self.llm_provider.generate(prompt=prompt)
+        try:
+            async with trace_stage(tracker, "generation"):
+                answer = await self.llm_provider.generate(prompt=prompt)
+        except Exception as e:
+            logger.error(f"LLM generation failed: {e}")
+            answer = f"ขออภัย ไม่สามารถสร้างคำตอบได้เนื่องจากเกิดข้อผิดพลาดจากผู้ให้บริการ AI: {str(e)}"
 
         # 8. Format response sources
         sources = [
@@ -253,9 +257,15 @@ class RagRuntime:
         yield f"event: sources\ndata: {json.dumps(sources)}\n\n"
 
         full_answer = []
-        async for chunk in self.llm_provider.generate_stream(prompt):
-            full_answer.append(chunk)
-            yield f"data: {json.dumps({'content': chunk, 'done': False})}\n\n"
+        try:
+            async for chunk in self.llm_provider.generate_stream(prompt):
+                full_answer.append(chunk)
+                yield f"data: {json.dumps({'content': chunk, 'done': False})}\n\n"
+        except Exception as e:
+            logger.error(f"LLM streaming error: {e}")
+            err_msg = f"\n[เกิดข้อผิดพลาดในการเชื่อมต่อโมเดล AI: {str(e)}]"
+            full_answer.append(err_msg)
+            yield f"data: {json.dumps({'content': err_msg, 'done': False, 'error': str(e)})}\n\n"
 
         final_answer = "".join(full_answer)
         if conversation_id:

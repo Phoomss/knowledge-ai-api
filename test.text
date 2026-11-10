@@ -1,2 +1,0 @@
-  2. อันดับ 2: เพิ่ม Endpoint รับอัปโหลดไฟล์ PDF ใน ai-service
-  3. อันดับ 3: ย้าย Conversation Memory ลง PostgreSQL เพื่อไม่ให้ประวัติแชทหาย
