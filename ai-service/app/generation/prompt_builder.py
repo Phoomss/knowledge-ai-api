@@ -1,9 +1,11 @@
+from typing import Optional
+
 class PromptBuilder:
     def build(
         self,
         question: str,
         documents: list[dict],
-        history: list[dict] | None = None,
+        history: Optional[list[dict]] = None,
     ) -> str:
 
         context_parts = []

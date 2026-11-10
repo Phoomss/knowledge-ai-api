@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
-from app.api.v1 import rag
+from app.api.v1 import documents, rag
 from app.core.config import get_settings
 from app.database.session import engine
 from app.embeddings.embedding_service import EmbeddingService
 from app.generation.llm_provider import GeminiProvider
 from app.generation.prompt_builder import PromptBuilder
+from app.ingestion.chunker import TextChunker
+from app.ingestion.pipeline import IngestionPipeline
 from app.orchestration.rag_runtime import RagRuntime
 from app.retrieval.retriever import Retriever
 from app.retrieval.vector_store import VectorStore
@@ -20,6 +22,15 @@ async def lifespan(app: FastAPI):
     # 1. Initialize Embedding
     embedding_service = EmbeddingService(
         model_name=settings.embedding_model,
+    )
+
+    # 2. Initialize Text Chunker
+    app.state.ingestion_pipeline = IngestionPipeline(
+        embedding_service=embedding_service,
+        chunker=TextChunker(
+            chunk_size=1200,
+            chunk_overlap=200,
+        ),
     )
 
     # 2. Initialize Vector Store
@@ -62,6 +73,7 @@ app = FastAPI(
 )
 
 app.include_router(rag.router)
+app.include_router(documents.router)
 
 
 @app.get("/health")

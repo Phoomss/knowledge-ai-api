@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
@@ -15,7 +16,7 @@ class RagQueryRequest(BaseModel):
         max_length=10000,
     )
     knowledge_base_id: UUID
-    conversation_id: UUID | None = None
+    conversation_id: Optional[UUID] = None
     options: RagOptions = Field(
         default_factory=RagOptions,
     )
@@ -28,7 +29,7 @@ class RagSource(BaseModel):
     score: float
 
 class RagMetadata(BaseModel):
-    model: str | None = None
+    model: Optional[str] = None
     retrieval_count: int
     used_context_count: int
 
