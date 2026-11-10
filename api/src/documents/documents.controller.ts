@@ -28,7 +28,11 @@ export class DocumentsController {
   }
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    }),
+  )
   uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('knowledge_base_id') knowledgeBaseId: string,
