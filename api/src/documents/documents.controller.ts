@@ -9,7 +9,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipeBuilder,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -21,6 +25,16 @@ export class DocumentsController {
   @Post()
   create(@Body() dto: CreateDocumentDto) {
     return this.documentsService.create(dto);
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('knowledge_base_id') knowledgeBaseId: string,
+    @Body('title') title?: string,
+  ) {
+    return this.documentsService.uploadPdf(knowledgeBaseId, file, title);
   }
 
   @Get()

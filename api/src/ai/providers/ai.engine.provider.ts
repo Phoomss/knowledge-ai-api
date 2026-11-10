@@ -71,4 +71,33 @@ export class AiEngineProvider {
       throw new ServiceUnavailableException('AI Ingestion service unavailable');
     }
   }
+
+  async uploadPdf(
+    documentId: string,
+    knowledgeBaseId: string,
+    filename: string,
+    fileBuffer: Buffer,
+    background: boolean = true,
+  ): Promise<IngestResponsePayload> {
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(fileBuffer)], { type: 'application/pdf' });
+      formData.append('file', blob, filename);
+      formData.append('knowledge_base_id', knowledgeBaseId);
+      formData.append('document_id', documentId);
+      formData.append('background', background ? 'true' : 'false');
+
+      const response = await firstValueFrom(
+        this.http.post<IngestResponsePayload>(
+          `${this.baseUrl}/api/v1/documents/upload-pdf`,
+          formData,
+        ),
+      );
+      this.logger.log(`PDF upload triggered for document ${documentId}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(`Failed to upload PDF to AI engine: ${error.message}`);
+      throw new ServiceUnavailableException('AI PDF Ingestion service unavailable');
+    }
+  }
 }
